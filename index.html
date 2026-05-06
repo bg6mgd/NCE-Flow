@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="NCE Flow">
+  <link rel="icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>NCE Flow</title>
+  <script>
+    (function () {
+      try {
+        const theme = localStorage.getItem('nce_theme') ||
+          (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const root = document.documentElement;
+        root.classList.add(theme + '-theme');
+        root.style.colorScheme = theme;
+        root.style.backgroundColor = theme === 'dark' ? '#09090b' : '#ffffff';
+      } catch (_) { }
+    })();
+  </script>
+  <link rel="stylesheet" href="assets/styles.css">
+
+  <!--  Microsoft Clarity 统计代码 -->
+  <script type="text/javascript">
+    (function (c, l, a, r, i, t, y) {
+      c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments) };
+      t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i;
+      y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+    })(window, document, "clarity", "script", "tvjv632zgs");
+  </script>
+  <!--  Microsoft Clarity 代码结束 -->
+
+  <script src="assets/utils.js" defer></script>
+  <script src="assets/app.js" defer></script>
+  <script src="assets/search.js" defer></script>
+
+  <!-- 主题切换逻辑 -->
+  <script>
+    (function () {
+      const THEME_KEY = 'nce_theme';
+      
+      // Icons
+      const SUN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+      const MOON_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+
+      function getPreferredTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        if (saved) return saved;
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+
+      function applyTheme(theme) {
+        const root = document.documentElement;
+        const scrollX = window.scrollX || 0;
+        const scrollY = window.scrollY || 0;
+        root.classList.remove('dark-theme', 'light-theme');
+        root.classList.add(theme + '-theme');
+        if (document.body) {
+          document.body.classList.remove('dark-theme', 'light-theme');
+          document.body.classList.add(theme + '-theme');
+        }
+        try { root.style.colorScheme = theme; } catch (_) { }
+        const computedBg = (() => {
+          try {
+            const base = document.body ? getComputedStyle(document.body) : getComputedStyle(root);
+            return base.getPropertyValue('--bg').trim();
+          } catch (_) {
+            return '';
+          }
+        })();
+        const bg = computedBg || (theme === 'dark' ? '#09090b' : '#ffffff');
+        root.style.backgroundColor = bg;
+        if (document.body) document.body.style.backgroundColor = bg;
+        void root.offsetHeight;
+        
+        const btn = document.getElementById('themeToggleBtn');
+        if (btn) {
+          // If current is dark, show SUN to switch to light. If light, show MOON.
+          btn.innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
+          btn.setAttribute('aria-label', theme === 'dark' ? '切换到浅色模式' : '切换到深色模式');
+        }
+        if (document.body) {
+          requestAnimationFrame(() => {
+            // iOS/WKWebView: sometimes tiles don't repaint until a scroll happens.
+            const body = document.body;
+            const prevOpacity = body.style.opacity;
+            body.style.opacity = '0.99999';
+
+            const doc = document.documentElement;
+            const maxY = Math.max(0, doc.scrollHeight - window.innerHeight);
+            const y0 = Math.max(0, Math.min(scrollY, maxY));
+            const y1 = maxY ? (y0 < maxY ? y0 + 1 : Math.max(0, y0 - 1)) : y0;
+            window.scrollTo(scrollX, y1);
+
+            requestAnimationFrame(() => {
+              body.style.opacity = prevOpacity;
+              window.scrollTo(scrollX, y0);
+            });
+          });
+        }
+      }
+
+      function toggleTheme() {
+        const isDark = document.documentElement.classList.contains('dark-theme') ||
+          (document.body && document.body.classList.contains('dark-theme'));
+        const next = isDark ? 'light' : 'dark';
+        localStorage.setItem(THEME_KEY, next);
+        applyTheme(next);
+      }
+
+      function init() {
+        const theme = getPreferredTheme();
+        applyTheme(theme);
+        const btn = document.getElementById('themeToggleBtn');
+        if (btn) btn.addEventListener('click', toggleTheme);
+      }
+
+      if (window.matchMedia) {
+        const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleSystemChange = (e) => {
+          if (!localStorage.getItem(THEME_KEY)) {
+            applyTheme(e.matches ? 'dark' : 'light');
+          }
+        };
+        if (colorSchemeQuery.addEventListener) colorSchemeQuery.addEventListener('change', handleSystemChange);
+        else if (colorSchemeQuery.addListener) colorSchemeQuery.addListener(handleSystemChange);
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('lessons');
+      const lastWrap = document.getElementById('lastSeenWrap');
+      const lastBox = document.getElementById('lastSeen');
+      const header = document.getElementById('bookTitle');
+      const segBooks = document.querySelectorAll('[data-book]');
+      const FAV_KEY = 'nce_favs';
+      const RECENT_KEY = 'nce_recents';
+      let lessonsData = null;
+      const getBook = () => (location.hash.slice(1) || 'NCE1').replace(/[^\w\d]/g, '');
+      function activeTab(book) { segBooks.forEach(b => b.classList.toggle('active', b.dataset.book === book)); }
+      async function load() {
+        if (lessonsData) {
+          render(lessonsData);
+          return;
+        }
+        try {
+          const res = await fetch('static/data.json');
+          if (!res.ok) {
+            console.error('Failed to fetch data.json:', res.status, res.statusText);
+            document.getElementById('lessons').innerHTML = '<div style="color: red; padding: 20px;">加载课程数据失败，请检查 static/data.json 文件</div>';
+            return;
+          }
+          lessonsData = await res.json();
+          render(lessonsData);
+        } catch (error) {
+          console.error('Error loading data:', error);
+          document.getElementById('lessons').innerHTML = '<div style="color: red; padding: 20px;">网络错误或数据格式问题</div>';
+        }
+      }
+      function getFavs() { try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')); } catch (_) { return new Set(); } }
+      function saveFavs(set) { try { localStorage.setItem(FAV_KEY, JSON.stringify(Array.from(set))); } catch (_) { } }
+
+      function lessonId(book, lesson) { return `${book}/${lesson.filename}`; }
+      function toLessonHref(book, lesson) { return `lesson.html#${book}/${lesson.filename}`; }
+      function fmtTime(t) { t = Math.max(0, Math.floor(t || 0)); const m = Math.floor(t / 60); const s = t % 60; return `${m}:${String(s).padStart(2, '0')}`; }
+
+      function itemHTML(book, lesson, idx, favs) {
+        const id = lessonId(book, lesson);
+        const isFav = favs.has(id);
+        const num = parseInt(book.replace('NCE', '')) || 1;
+        let lessonNumber = num === 1 ? `${idx * 2 + 1}&${idx * 2 + 2}` : String(idx + 1);
+        return `
+          <a class="lesson-item" href="${toLessonHref(book, lesson)}" data-id="${id}">
+            <div class="lesson-content">
+              <div class="lesson-num">第${lessonNumber}课</div>
+              <div class="lesson-title">${lesson.title}</div>
+            </div>
+            <button class="fav-btn ${isFav ? 'active' : ''}" role="button" aria-label="收藏" aria-pressed="${isFav}" data-id="${id}" onclick="event.preventDefault(); event.stopPropagation(); toggleFav('${id}')">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 12.027 3.297 14.5l.9-5.243L.1 5.997l5.258-.764L8 0l2.642 5.233 5.258.764-4.097 3.26.9 5.243L8 12.027Z"></path>
+              </svg>
+            </button>
+          </a>`;
+      }
+
+      function render(data) {
+        const book = getBook();
+        const num = parseInt(book.replace('NCE', '')) || 1;
+        // header.textContent = `新概念英语第${['一','二','三','四'][num-1]}册`;
+        activeTab(book);
+        const lessons = data[num] || [];
+        const favs = getFavs();
+
+        try {
+          const recRaw = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+          const rec = recRaw.filter(x => typeof x?.id === 'string' && x.id.startsWith(book + '/'))
+            .sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
+          if (rec) {
+            const i = lessons.findIndex(l => `${book}/${l.filename}` === rec.id);
+            if (i >= 0) {
+              const lesson = lessons[i];
+              let posTxt = '';
+              try {
+                const map = JSON.parse(localStorage.getItem('nce_lastpos') || '{}');
+                const lp = map[rec.id];
+                if (lp && (lp.idx >= 0 || lp.t >= 0)) {
+                  const num = parseInt(book.replace('NCE', '')) || 1;
+                  const lessonNumber = num === 1 ? `${i * 2 + 1}&${i * 2 + 2}` : String(i + 1);
+                  const tt = (lp.t >= 0) ? fmtTime(lp.t) : '';
+                  posTxt = [`第${lessonNumber}课`, tt].filter(Boolean).join(' · ');
+                }
+              } catch (_) { }
+              if (lastWrap && lastBox) {
+                lastWrap.style.display = '';
+                const href = toLessonHref(book, lesson);
+                lastBox.innerHTML = `
+                  <a class="last-seen" href="${href}" data-id="${rec.id}" id="lastSeenLink">
+                    <div class="lesson-content">
+                      <div class="lesson-num">上次学习</div>
+                      <div class="lesson-title">${lesson.title}</div>
+                      ${posTxt ? `<div style="font-size:13px;color:var(--muted);margin-top:4px">${posTxt}</div>` : ''}
+                    </div>
+                    <div style="flex:0 0 auto;width:20px;height:20px;color:var(--text);display:flex;align-items:center;justify-content:center">→</div>
+                  </a>`;
+              }
+            } else {
+              if (lastWrap && lastBox) { lastWrap.style.display = 'none'; lastBox.innerHTML = ''; }
+            }
+          } else {
+            if (lastWrap && lastBox) { lastWrap.style.display = 'none'; lastBox.innerHTML = ''; }
+          }
+        } catch (_) { }
+
+        const existingGrid = container.querySelector('.lessons-grid');
+        if (existingGrid) {
+          existingGrid.innerHTML = lessons.map((l, i) => itemHTML(book, l, i, favs)).join('');
+        } else {
+          const gridDiv = document.createElement('div');
+          gridDiv.className = 'lessons-grid';
+          gridDiv.innerHTML = lessons.map((l, i) => itemHTML(book, l, i, favs)).join('');
+          container.appendChild(gridDiv);
+        }
+      }
+      window.addEventListener('hashchange', load, { passive: true });
+      NCE_APP.initSegmented(document);
+
+      window.toggleFav = function (id) {
+        if (!id) return;
+        const favs = getFavs();
+        if (favs.has(id)) favs.delete(id); else favs.add(id);
+        saveFavs(favs);
+        if (lessonsData) {
+          render(lessonsData);
+          return;
+        }
+        load();
+      };
+      document.addEventListener('click', (e) => {
+        const a = e.target.closest('#lastSeenLink');
+        if (!a) return;
+        const id = a.dataset.id;
+        try { sessionStorage.setItem('nce_resume', id); sessionStorage.setItem('nce_resume_play', '1'); } catch (_) { }
+      });
+      load();
+    });
+  </script>
+
+  <style>
+    .tabs {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin: 8px 0
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header class="hero">
+      <div class="header-actions">
+        <button id="searchBtn" class="icon-btn search-trigger" aria-label="搜索">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+        <button id="themeToggleBtn" class="icon-btn theme-toggle" aria-label="切换主题">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+      <h1 id="bookTitle">NCE Flow</h1>
+      <p class="subtitle">简约 · 高效 · 专注</p>
+      <div class="seg-wrap">
+        <div class="segmented tabs" role="tablist" aria-label="册别">
+          <a class="seg" href="#NCE1" data-book="NCE1">第一册</a>
+          <a class="seg" href="#NCE2" data-book="NCE2">第二册</a>
+          <a class="seg" href="#NCE3" data-book="NCE3">第三册</a>
+          <a class="seg" href="#NCE4" data-book="NCE4">第四册</a>
+          <a class="seg" href="favorites.html" id="favoritesLinkHome">清单</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="search-overlay" hidden>
+      <div class="search-container">
+        <div class="search-header">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="searchInput" placeholder="搜索句子、单词或课文..." autocomplete="off">
+            <button id="searchClear" class="search-clear" aria-label="清除搜索" hidden>×</button>
+          </div>
+          <button id="searchClose" class="search-cancel">取消</button>
+        </div>
+        <div class="search-body">
+          <div id="searchResults" class="search-results"></div>
+          <div id="searchEmpty" class="search-empty" hidden>
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+            <p>未找到相关内容</p>
+          </div>
+          <div id="searchLoading" class="search-loading" hidden>
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="searchLiveRegion" class="sr-only" aria-live="polite" role="status"></div>
+    <main class="lessons" id="lessons">
+      <section class="section last-seen-section" id="lastSeenWrap" style="display:none">
+        <div id="lastSeen"></div>
+      </section>
+    </main>
+    <footer>
+      <p class="repo">
+        <a class="gh-link" href="https://github.com/luzhenhua/NCE-Flow" target="_blank" rel="noopener"
+          aria-label="GitHub repository">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z">
+            </path>
+          </svg>
+        </a>
+      </p>
+      <p class="byline">本网站由 <a href="https://luzhenhua.cn/" target="_blank" rel="noopener">卢振华</a> 开发与维护</p>
+      <p class="version"><a href="https://github.com/luzhenhua/NCE-Flow/releases" target="_blank" rel="noopener">版本
+          1.7.9</a><span id="pwaFooterInstall" class="pwa-footer-link" hidden> · <a href="#">安装应用</a></span></p>
+      <div class="footer-actions">
+        <a class="footer-btn" href="about.html">关于</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // 注册 Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then((reg) => {
+            console.log('[PWA] Service Worker 注册成功');
+            reg.update();
+
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            });
+
+            // Show update notification instead of auto-refresh
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              showUpdateNotification();
+            });
+          })
+          .catch(err => console.log('[PWA] Service Worker 注册失败:', err));
+      });
+    }
+
+    function showUpdateNotification() {
+      // Prevent duplicate notifications
+      if (document.getElementById('updateNotification')) return;
+
+      const notification = document.createElement('div');
+      notification.id = 'updateNotification';
+      notification.innerHTML = `
+        <span>🎉 新版本已就绪</span>
+        <button onclick="window.location.reload()">点击刷新</button>
+      `;
+      notification.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--text, #1d1d1f);
+        color: var(--bg, #fff);
+        padding: 12px 20px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-size: 14px;
+        animation: slideUp 0.3s ease;
+      `;
+      notification.querySelector('button').style.cssText = `
+        background: var(--accent, #3b82f6);
+        color: #fff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        font-weight: 500;
+      `;
+      document.body.appendChild(notification);
+    }
+  </script>
+
+  <!-- PWA Install Prompt -->
+  <div id="pwaPrompt" class="pwa-prompt">
+    <img src="icons/icon-192x192.png" alt="" class="pwa-prompt-icon">
+    <div class="pwa-prompt-content">
+      <span class="pwa-prompt-title">安装 NCE Flow</span>
+      <span class="pwa-prompt-sub" id="pwaPromptSub">添加到主屏幕，随时学习</span>
+    </div>
+    <button id="pwaInstall" class="pwa-prompt-btn">安装</button>
+    <button id="pwaClose" class="pwa-prompt-close" type="button" aria-label="关闭安装提示" tabindex="0">×</button>
+  </div>
+  <script>
+    (function () {
+      const DISMISS_KEY = 'pwa_dismissed';
+      const INSTALLED_KEY = 'pwa_installed';
+      let deferredPrompt = null;
+      const el = document.getElementById('pwaPrompt');
+      const installBtn = document.getElementById('pwaInstall');
+      const closeBtn = document.getElementById('pwaClose');
+      const promptSub = document.getElementById('pwaPromptSub');
+      const footerInstall = document.getElementById('pwaFooterInstall');
+      if (!el) return;
+
+      // 检测 iOS Safari
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/.test(navigator.userAgent);
+      const isIOSSafari = isIOS && isSafari;
+      const isStandalone = window.matchMedia('(display-mode:standalone)').matches || navigator.standalone;
+
+      const isInstalled = () => isStandalone || localStorage.getItem(INSTALLED_KEY);
+      const isDismissed = () => { const d = localStorage.getItem(DISMISS_KEY); return d && (Date.now() - parseInt(d)) < 7 * 24 * 60 * 60 * 1000; };
+
+      const showPrompt = () => {
+        if (isInstalled() || isDismissed()) return;
+        if (!deferredPrompt && !isIOSSafari) return;
+        el.classList.add('show');
+      };
+      const hidePrompt = () => el.classList.remove('show');
+      const showFooterLink = () => { if (footerInstall && !isInstalled()) footerInstall.hidden = false; };
+      const hideFooterLink = () => { if (footerInstall) footerInstall.hidden = true; };
+
+      // iOS 引导界面
+      const showIOSGuide = () => {
+        el.classList.add('ios-prompt');
+        promptSub.innerHTML = '点击底部 <svg class="ios-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 然后选择「添加到主屏幕」';
+        installBtn.textContent = '知道了';
+        installBtn.onclick = hidePrompt;
+      };
+
+      const doInstall = async () => {
+        // iOS Safari: 点击后显示引导
+        if (isIOSSafari) {
+          showIOSGuide();
+          return;
+        }
+        // Chrome/Edge: 标准安装流程
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') localStorage.setItem(INSTALLED_KEY, '1');
+        deferredPrompt = null;
+        hidePrompt();
+        hideFooterLink();
+      };
+
+      // iOS Safari: 延迟显示提示（与 Android 相同的初始界面）
+      if (isIOSSafari && !isInstalled() && !isDismissed()) {
+        showFooterLink();
+        setTimeout(showPrompt, 2500);
+      }
+
+      // Chrome/Edge: 标准安装流程
+      window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showFooterLink();
+        setTimeout(showPrompt, 2500);
+      });
+
+      installBtn.addEventListener('click', doInstall);
+      if (footerInstall) {
+        footerInstall.querySelector('a').addEventListener('click', e => {
+          e.preventDefault();
+          showPrompt();
+        });
+      }
+      closeBtn.addEventListener('click', () => { localStorage.setItem(DISMISS_KEY, Date.now()); hidePrompt(); });
+      window.addEventListener('appinstalled', () => { localStorage.setItem(INSTALLED_KEY, '1'); hidePrompt(); hideFooterLink(); });
+    })();
+  </script>
+  <!-- Copyright Confirmation Modal -->
+  <div id="copyrightModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+      </div>
+      <h3 class="modal-title">正版承诺</h3>
+      <p class="modal-text">本网站仅供新概念英语学习者辅助使用。使用本网站前，请确认您已购买正版新概念英语，拒绝任何形式的盗版书籍。</p>
+
+      <div class="modal-checkbox-wrapper">
+        <input type="checkbox" id="copyrightCheck">
+        <label for="copyrightCheck">我已购买正版新概念英语书籍</label>
+      </div>
+
+      <button id="copyrightConfirmBtn" class="modal-btn" disabled>进入学习</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const KEY = 'nce_copyright_confirmed';
+      const modal = document.getElementById('copyrightModal');
+      const checkbox = document.getElementById('copyrightCheck');
+      const btn = document.getElementById('copyrightConfirmBtn');
+
+      if (!modal || !checkbox || !btn) return;
+
+      // Check if already confirmed
+      const confirmed = localStorage.getItem(KEY);
+      if (!confirmed) {
+        modal.style.display = 'flex';
+        // Disable scroll
+        document.body.style.overflow = 'hidden';
+      }
+
+      checkbox.addEventListener('change', (e) => {
+        btn.disabled = !e.target.checked;
+      });
+
+      btn.addEventListener('click', () => {
+        if (checkbox.checked) {
+          localStorage.setItem(KEY, '1');
+          modal.style.opacity = '0';
+          setTimeout(() => {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+          }, 300);
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>
